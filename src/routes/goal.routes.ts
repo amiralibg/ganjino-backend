@@ -1,14 +1,14 @@
 import { Router } from 'express';
 import { body } from 'express-validator';
 import {
-  getProducts,
-  getProductById,
-  createProduct,
-  updateProduct,
-  deleteProduct,
+  getGoals,
+  getGoalById,
+  createGoal,
+  updateGoal,
+  deleteGoal,
   toggleWishlist,
-  getWishlistedProducts,
-} from '../controllers/product.controller';
+  getWishlistedGoals,
+} from '../controllers/goal.controller';
 import { authenticateToken } from '../middleware/auth';
 
 const router = Router();
@@ -18,60 +18,60 @@ router.use(authenticateToken);
 
 /**
  * @swagger
- * /api/products:
+ * /api/goals:
  *   get:
- *     summary: Get all products for the authenticated user
- *     tags: [Products]
+ *     summary: Get all goals for the authenticated user
+ *     tags: [Goals]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: List of products
+ *         description: List of goals
  *         content:
  *           application/json:
  *             schema:
  *               type: object
  *               properties:
- *                 products:
+ *                 goals:
  *                   type: array
  *                   items:
- *                     $ref: '#/components/schemas/Product'
+ *                     $ref: '#/components/schemas/Goal'
  *       401:
  *         description: Unauthorized
  */
-router.get('/', getProducts);
+router.get('/', getGoals);
 
 /**
  * @swagger
- * /api/products/wishlisted:
+ * /api/goals/wishlisted:
  *   get:
- *     summary: Get all wishlisted products for the authenticated user
- *     tags: [Products]
+ *     summary: Get all wishlisted goals for the authenticated user
+ *     tags: [Goals]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: List of wishlisted products
+ *         description: List of wishlisted goals
  *         content:
  *           application/json:
  *             schema:
  *               type: object
  *               properties:
- *                 products:
+ *                 goals:
  *                   type: array
  *                   items:
- *                     $ref: '#/components/schemas/Product'
+ *                     $ref: '#/components/schemas/Goal'
  *       401:
  *         description: Unauthorized
  */
-router.get('/wishlisted', getWishlistedProducts);
+router.get('/wishlisted', getWishlistedGoals);
 
 /**
  * @swagger
- * /api/products/{id}:
+ * /api/goals/{id}:
  *   get:
- *     summary: Get a product by ID
- *     tags: [Products]
+ *     summary: Get a goal by ID
+ *     tags: [Goals]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -80,28 +80,28 @@ router.get('/wishlisted', getWishlistedProducts);
  *         required: true
  *         schema:
  *           type: string
- *         description: Product ID
+ *         description: Goal ID
  *     responses:
  *       200:
- *         description: Product details
+ *         description: Goal details
  *         content:
  *           application/json:
  *             schema:
  *               type: object
  *               properties:
- *                 product:
- *                   $ref: '#/components/schemas/Product'
+ *                 goal:
+ *                   $ref: '#/components/schemas/Goal'
  *       404:
- *         description: Product not found
+ *         description: Goal not found
  */
-router.get('/:id', getProductById);
+router.get('/:id', getGoalById);
 
 /**
  * @swagger
- * /api/products:
+ * /api/goals:
  *   post:
- *     summary: Create a new product
- *     tags: [Products]
+ *     summary: Create a new goal
+ *     tags: [Goals]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -130,7 +130,7 @@ router.get('/:id', getProductById);
  *                 minimum: 0
  *     responses:
  *       201:
- *         description: Product created successfully
+ *         description: Goal created successfully
  *         content:
  *           application/json:
  *             schema:
@@ -138,30 +138,30 @@ router.get('/:id', getProductById);
  *               properties:
  *                 message:
  *                   type: string
- *                 product:
- *                   $ref: '#/components/schemas/Product'
+ *                 goal:
+ *                   $ref: '#/components/schemas/Goal'
  *       400:
  *         description: Validation error
  */
 router.post(
   '/',
   [
-    body('name').notEmpty().withMessage('Product name is required'),
+    body('name').notEmpty().withMessage('Goal name is required'),
     body('price').isFloat({ min: 0 }).withMessage('Price must be a positive number'),
     body('savedGoldAmount')
       .optional()
       .isFloat({ min: 0 })
       .withMessage('Saved gold amount must be a positive number'),
   ],
-  createProduct
+  createGoal
 );
 
 /**
  * @swagger
- * /api/products/{id}:
+ * /api/goals/{id}:
  *   put:
- *     summary: Update a product
- *     tags: [Products]
+ *     summary: Update a goal
+ *     tags: [Goals]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -170,7 +170,7 @@ router.post(
  *         required: true
  *         schema:
  *           type: string
- *         description: Product ID
+ *         description: Goal ID
  *     requestBody:
  *       required: true
  *       content:
@@ -193,7 +193,7 @@ router.post(
  *                 minimum: 0
  *     responses:
  *       200:
- *         description: Product updated successfully
+ *         description: Goal updated successfully
  *         content:
  *           application/json:
  *             schema:
@@ -201,10 +201,10 @@ router.post(
  *               properties:
  *                 message:
  *                   type: string
- *                 product:
- *                   $ref: '#/components/schemas/Product'
+ *                 goal:
+ *                   $ref: '#/components/schemas/Goal'
  *       404:
- *         description: Product not found
+ *         description: Goal not found
  */
 router.put(
   '/:id',
@@ -215,15 +215,15 @@ router.put(
       .isFloat({ min: 0 })
       .withMessage('Saved gold amount must be a positive number'),
   ],
-  updateProduct
+  updateGoal
 );
 
 /**
  * @swagger
- * /api/products/{id}:
+ * /api/goals/{id}:
  *   delete:
- *     summary: Delete a product
- *     tags: [Products]
+ *     summary: Delete a goal
+ *     tags: [Goals]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -232,21 +232,21 @@ router.put(
  *         required: true
  *         schema:
  *           type: string
- *         description: Product ID
+ *         description: Goal ID
  *     responses:
  *       200:
- *         description: Product deleted successfully
+ *         description: Goal deleted successfully
  *       404:
- *         description: Product not found
+ *         description: Goal not found
  */
-router.delete('/:id', deleteProduct);
+router.delete('/:id', deleteGoal);
 
 /**
  * @swagger
- * /api/products/{id}/wishlist:
+ * /api/goals/{id}/wishlist:
  *   patch:
- *     summary: Toggle wishlist status for a product
- *     tags: [Products]
+ *     summary: Toggle wishlist status for a goal
+ *     tags: [Goals]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -255,7 +255,7 @@ router.delete('/:id', deleteProduct);
  *         required: true
  *         schema:
  *           type: string
- *         description: Product ID
+ *         description: Goal ID
  *     responses:
  *       200:
  *         description: Wishlist status updated
@@ -266,10 +266,10 @@ router.delete('/:id', deleteProduct);
  *               properties:
  *                 message:
  *                   type: string
- *                 product:
- *                   $ref: '#/components/schemas/Product'
+ *                 goal:
+ *                   $ref: '#/components/schemas/Goal'
  *       404:
- *         description: Product not found
+ *         description: Goal not found
  */
 router.patch('/:id/wishlist', toggleWishlist);
 

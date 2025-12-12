@@ -24,9 +24,9 @@ import mongoose, { Document, Schema } from 'mongoose';
  *           type: string
  *           enum: [money, gold]
  *           description: Type of savings entry
- *         productId:
+ *         goalId:
  *           type: string
- *           description: Optional reference to associated product
+ *           description: Optional reference to associated goal
  *         note:
  *           type: string
  *           description: Optional note about this savings entry
@@ -43,7 +43,7 @@ export interface ISavingsLog extends Document {
   userId: mongoose.Types.ObjectId;
   amount: number; // In currency (Toman) or gold (grams) depending on type
   type: 'money' | 'gold';
-  productId?: mongoose.Types.ObjectId; // Optional: which product this savings is for
+  goalId?: mongoose.Types.ObjectId; // Optional: which goal this savings is for
   note?: string;
   date: Date; // When the savings occurred
   createdAt: Date;
@@ -69,9 +69,9 @@ const SavingsLogSchema: Schema = new Schema(
       required: true,
       default: 'money',
     },
-    productId: {
+    goalId: {
       type: Schema.Types.ObjectId,
-      ref: 'Product',
+      ref: 'Goal',
       required: false,
     },
     note: {

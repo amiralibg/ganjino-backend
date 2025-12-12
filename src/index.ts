@@ -5,7 +5,7 @@ import swaggerUi from 'swagger-ui-express';
 import { connectDB } from './config/database';
 import { swaggerSpec } from './config/swagger';
 import authRoutes from './routes/auth.routes';
-import productRoutes from './routes/product.routes';
+import goalRoutes from './routes/goal.routes';
 import profileRoutes from './routes/profile.routes';
 import goldRoutes from './routes/gold.routes';
 import adminRoutes from './routes/admin.routes';
@@ -35,7 +35,7 @@ app.get('/health', (_req: Request, res: Response) => {
 
 // Routes
 app.use('/api/auth', authRoutes);
-app.use('/api/products', productRoutes);
+app.use('/api/goals', goalRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/gold', goldRoutes);
 app.use('/api/admin', adminRoutes);

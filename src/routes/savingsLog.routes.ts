@@ -42,9 +42,9 @@ const router = express.Router();
  *                 enum: [money, gold]
  *                 default: money
  *                 description: Type of savings entry
- *               productId:
+ *               goalId:
  *                 type: string
- *                 description: Optional product this savings is for
+ *                 description: Optional goal this savings is for
  *               note:
  *                 type: string
  *                 description: Optional note about this savings
@@ -69,7 +69,7 @@ router.post(
       .optional()
       .isIn(['money', 'gold'])
       .withMessage('Type must be either money or gold'),
-    body('productId').optional().isMongoId().withMessage('Invalid product ID'),
+    body('goalId').optional().isMongoId().withMessage('Invalid goal ID'),
     body('note')
       .optional()
       .isString()
@@ -108,10 +108,10 @@ router.post(
  *           enum: [money, gold]
  *         description: Filter by type
  *       - in: query
- *         name: productId
+ *         name: goalId
  *         schema:
  *           type: string
- *         description: Filter by product
+ *         description: Filter by goal
  *       - in: query
  *         name: limit
  *         schema:

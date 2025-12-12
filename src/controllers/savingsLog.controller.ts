@@ -2,7 +2,7 @@ import { Response } from 'express';
 import { validationResult } from 'express-validator';
 import mongoose, { FilterQuery } from 'mongoose';
 import SavingsLog, { ISavingsLog } from '../models/SavingsLog';
-import Product from '../models/Product';
+import Goal from '../models/Goal';
 import { AuthRequest } from '../middleware/auth';
 
 /**
@@ -17,19 +17,19 @@ export const createSavingsLog = async (req: AuthRequest, res: Response): Promise
     }
 
     const userId = req.userId;
-    const { amount, type, productId, note, date } = req.body as {
+    const { amount, type, goalId, note, date } = req.body as {
       amount: number;
       type?: string;
-      productId?: string;
+      goalId?: string;
       note?: string;
       date?: string;
     };
 
-    // Validate productId if provided
-    if (productId) {
-      const product = await Product.findOne({ _id: productId, userId });
-      if (!product) {
-        res.status(404).json({ error: 'Product not found' });
+    // Validate goalId if provided
+    if (goalId) {
+      const goal = await Goal.findOne({ _id: goalId, userId });
+      if (!goal) {
+        res.status(404).json({ error: 'Goal not found' });
         return;
       }
     }
@@ -38,7 +38,7 @@ export const createSavingsLog = async (req: AuthRequest, res: Response): Promise
       userId,
       amount: Number(amount),
       type: type || 'money',
-      productId: productId || undefined,
+      goalId: goalId || undefined,
       note: note || undefined,
       date: date ? new Date(String(date)) : new Date(),
     });
@@ -61,7 +61,7 @@ export const createSavingsLog = async (req: AuthRequest, res: Response): Promise
 export const getSavingsLogs = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.userId;
-    const { startDate, endDate, type, productId, limit = 100 } = req.query;
+    const { startDate, endDate, type, goalId, limit = 100 } = req.query;
 
     // Build query filter
     const filter: FilterQuery<ISavingsLog> = { userId };
@@ -81,12 +81,12 @@ export const getSavingsLogs = async (req: AuthRequest, res: Response): Promise<v
       filter.type = type as 'money' | 'gold';
     }
 
-    if (productId) {
-      filter.productId = productId as unknown as mongoose.Types.ObjectId;
+    if (goalId) {
+      filter.goalId = goalId as unknown as mongoose.Types.ObjectId;
     }
 
     const savingsLogs = await SavingsLog.find(filter)
-      .populate('productId', 'name price goldEquivalent')
+      .populate('goalId', 'name price goldEquivalent')
       .sort({ date: -1 })
       .limit(Number(limit));
 

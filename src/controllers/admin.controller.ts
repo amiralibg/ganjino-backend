@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import User from '../models/User';
-import Product from '../models/Product';
+import Goal from '../models/Goal';
 import RefreshToken from '../models/RefreshToken';
 import { AuthRequest } from '../middleware/auth';
 import { FilterQuery } from 'mongoose';
@@ -56,13 +56,13 @@ export const getUserDetails = async (req: AuthRequest, res: Response): Promise<v
       expiresAt: { $gt: new Date() },
     }).select('-token');
 
-    const productCount = await Product.countDocuments({ userId });
+    const goalCount = await Goal.countDocuments({ userId });
 
     res.status(200).json({
       user,
       stats: {
         activeSessions: activeSessions.length,
-        productCount,
+        goalCount,
       },
       sessions: activeSessions,
     });
@@ -174,8 +174,8 @@ export const getDashboardStats = async (req: AuthRequest, res: Response): Promis
     const totalUsers = await User.countDocuments();
     const activeUsers = await User.countDocuments({ isActive: true });
     const admins = await User.countDocuments({ role: 'admin' });
-    const totalProducts = await Product.countDocuments();
-    const wishlistedProducts = await Product.countDocuments({ isWishlisted: true });
+    const totalGoals = await Goal.countDocuments();
+    const wishlistedGoals = await Goal.countDocuments({ isWishlisted: true });
     const activeSessions = await RefreshToken.countDocuments({
       isRevoked: false,
       expiresAt: { $gt: new Date() },
@@ -188,9 +188,9 @@ export const getDashboardStats = async (req: AuthRequest, res: Response): Promis
         inactive: totalUsers - activeUsers,
         admins,
       },
-      products: {
-        total: totalProducts,
-        wishlisted: wishlistedProducts,
+      goals: {
+        total: totalGoals,
+        wishlisted: wishlistedGoals,
       },
       sessions: {
         active: activeSessions,

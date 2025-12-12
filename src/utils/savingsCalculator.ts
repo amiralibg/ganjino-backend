@@ -1,6 +1,6 @@
 /**
  * Savings Timeline Calculator Utility
- * Calculates how long it takes to save for a product based on user's salary and savings rate
+ * Calculates how long it takes to save for a goal based on user's salary and savings rate
  */
 
 export interface SavingsTimeline {
@@ -12,23 +12,25 @@ export interface SavingsTimeline {
 }
 
 /**
- * Calculate savings timeline based on product price, user's salary, and savings percentage
- * @param productPrice - Price of the product in Toman
+ * Calculate savings timeline based on goal price, user's salary, and savings percentage
+ * @param goalPrice - Price of the goal in Toman (DEPRECATED - only used as fallback)
  * @param goldEquivalent - Gold equivalent in grams
  * @param monthlySalary - User's monthly salary in Toman
  * @param savingsPercentage - Percentage of salary to save (0-100)
  * @param currentlySaved - Already saved gold amount in grams (default: 0)
+ * @param currentGoldPrice - Current price of 18K gold per gram in Toman (optional, uses goalPrice as fallback)
  * @returns SavingsTimeline object with calculation results
  */
 export const calculateSavingsTimeline = (
-  productPrice: number,
+  goalPrice: number,
   goldEquivalent: number,
   monthlySalary: number,
   savingsPercentage: number,
-  currentlySaved: number = 0
+  currentlySaved: number = 0,
+  currentGoldPrice?: number
 ): SavingsTimeline | null => {
   // Validation
-  if (monthlySalary <= 0 || savingsPercentage <= 0 || productPrice <= 0) {
+  if (monthlySalary <= 0 || savingsPercentage <= 0 || goalPrice <= 0) {
     return null;
   }
 
@@ -49,8 +51,11 @@ export const calculateSavingsTimeline = (
     };
   }
 
-  // Calculate remaining price to save in Toman
-  const remainingPrice = (remainingGold / goldEquivalent) * productPrice;
+  // Calculate remaining price to save in Toman using CURRENT gold price
+  // If currentGoldPrice is provided, use it; otherwise fallback to original calculation
+  const remainingPrice = currentGoldPrice
+    ? remainingGold * currentGoldPrice
+    : (remainingGold / goldEquivalent) * goalPrice;
 
   // Calculate months needed
   const monthsToSave = remainingPrice / monthlySavingsAmount;
@@ -74,14 +79,14 @@ export const calculateSavingsTimeline = (
 
 /**
  * Calculate required monthly savings to reach goal by a specific date
- * @param productPrice - Price of the product in Toman
+ * @param goalPrice - Price of the goal in Toman
  * @param goldEquivalent - Gold equivalent in grams
  * @param targetDate - Target date to complete savings
  * @param currentlySaved - Already saved gold amount in grams
  * @returns Required monthly savings amount in Toman and gold
  */
 export const calculateRequiredMonthlySavings = (
-  productPrice: number,
+  goalPrice: number,
   goldEquivalent: number,
   targetDate: Date,
   currentlySaved: number = 0
@@ -94,7 +99,7 @@ export const calculateRequiredMonthlySavings = (
   }
 
   const remainingGold = Math.max(0, goldEquivalent - currentlySaved);
-  const remainingPrice = (remainingGold / goldEquivalent) * productPrice;
+  const remainingPrice = (remainingGold / goldEquivalent) * goalPrice;
 
   return {
     monthlySavingsRequired: remainingPrice / monthsUntilTarget,
