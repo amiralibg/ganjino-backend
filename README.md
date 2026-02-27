@@ -1,156 +1,186 @@
 # Ganjino Backend API
 
-RESTful API for Ganjino (گنجینو) - A savings goal tracking application built with Node.js, Express, TypeScript, and MongoDB.
+REST API for Ganjino (گنجینو), a savings and goal-tracking platform. This service handles authentication, profile management, savings logs, gold pricing, admin operations, and scheduled background jobs.
 
-## Features
+## Highlights
 
-- **Authentication**: JWT-based authentication with bcrypt password hashing
-- **Products**: CRUD operations for savings goals/products
-- **Profile**: User profile management with monthly salary tracking
-- **Wishlist**: Toggle and filter wishlisted products
-- **API Documentation**: Swagger/OpenAPI documentation at `/api-docs`
+- JWT-based authentication with refresh token support
+- Goal and savings log APIs for user progress tracking
+- Profile and session-aware account management
+- Gold price and gold history endpoints
+- Admin-only moderation and platform insight endpoints
+- Request logging, centralized error handling, and validation middleware
+- Cron jobs for recurring background tasks and startup gold-price persistence
+- Swagger documentation for local API exploration
 
 ## Tech Stack
 
-- Node.js with Express
+- Node.js
+- Express 5
 - TypeScript
 - MongoDB with Mongoose
-- JWT for authentication
-- Bcrypt for password hashing
-- Swagger for API documentation
-- Express Validator for request validation
+- JSON Web Tokens
+- express-validator
+- Swagger UI / swagger-jsdoc
+- node-cron
+
+## Project Structure
+
+```text
+.
+├── src/
+│   ├── config/          # Environment, database, and Swagger setup
+│   ├── constants/       # Shared roles and response messages
+│   ├── controllers/     # Route handlers
+│   ├── middleware/      # Auth, validation, rate limiting, logging, errors
+│   ├── models/          # Mongoose models
+│   ├── routes/          # Express route modules
+│   ├── scripts/         # Local maintenance and seed scripts
+│   ├── services/        # Gold pricing and cron job services
+│   ├── utils/           # JWT and domain helpers
+│   └── index.ts         # Application bootstrap
+├── .env.example
+├── package.json
+└── README.md
+```
+
+## API Surface
+
+The server mounts these route groups:
+
+- `/api/auth`
+- `/api/goals`
+- `/api/profile`
+- `/api/gold`
+- `/api/logs`
+- `/api/gold-history`
+- `/api/admin`
+
+It also exposes:
+
+- `/health` for service health checks
+- `/api-docs` for Swagger UI
 
 ## Prerequisites
 
-- Node.js (v18 or higher)
-- MongoDB (v6 or higher)
-- npm or yarn
+- Node.js 18 or newer
+- npm 9 or newer
+- MongoDB 6 or newer
+- A valid gold price API key for environments where live gold data is required
 
-## Installation
+## Getting Started
 
 1. Install dependencies:
+
 ```bash
 npm install
 ```
 
-2. Create a `.env` file in the root directory:
+2. Create a local environment file:
+
 ```bash
 cp .env.example .env
 ```
 
-3. Update the `.env` file with your configuration:
+3. Configure environment variables.
+
+Minimum local setup:
+
 ```env
 PORT=3000
 MONGODB_URI=mongodb://localhost:27017/ganjino
-JWT_SECRET=your-secret-key-change-this-in-production
+JWT_SECRET=replace-this-with-a-secure-value
 NODE_ENV=development
+GOLD_API_KEY=your-gold-api-key
 ```
 
-## Development
+4. Start the development server:
 
-Start the development server with hot reloading:
 ```bash
 npm run dev
 ```
 
-The server will start on `http://localhost:3000`
+The API will start on `http://localhost:3000`.
 
-## Building for Production
+## Available Scripts
 
-Build the TypeScript code:
 ```bash
+npm run dev
 npm run build
-```
-
-Start the production server:
-```bash
 npm start
+npm run seed:default
+npm run typecheck
+npm run lint
+npm run lint:fix
+npm run format
+npm run format:check
 ```
-
-## API Documentation
-
-Once the server is running, visit:
-```
-http://localhost:3000/api-docs
-```
-
-This will open the Swagger UI with interactive API documentation.
-
-## API Endpoints
-
-### Authentication
-- `POST /api/auth/signup` - Register a new user
-- `POST /api/auth/signin` - Sign in an existing user
-- `GET /api/auth/me` - Get current user information (requires auth)
-
-### Products
-- `GET /api/products` - Get all products (requires auth)
-- `GET /api/products/wishlisted` - Get wishlisted products (requires auth)
-- `GET /api/products/:id` - Get a product by ID (requires auth)
-- `POST /api/products` - Create a new product (requires auth)
-- `PUT /api/products/:id` - Update a product (requires auth)
-- `DELETE /api/products/:id` - Delete a product (requires auth)
-- `PATCH /api/products/:id/wishlist` - Toggle wishlist status (requires auth)
-
-### Profile
-- `GET /api/profile` - Get user profile (requires auth)
-- `PUT /api/profile` - Update user profile (requires auth)
-
-### Health Check
-- `GET /health` - API health check
-
-## Authentication
-
-Protected endpoints require a JWT token in the Authorization header:
-```
-Authorization: Bearer <your-jwt-token>
-```
-
-After signing up or signing in, you'll receive a token in the response. Include this token in subsequent requests to protected endpoints.
-
-## Project Structure
-
-```
-backend/
-├── src/
-│   ├── config/          # Configuration files (database, swagger)
-│   ├── controllers/     # Route controllers
-│   ├── middleware/      # Custom middleware (auth, error handling)
-│   ├── models/          # Mongoose models
-│   ├── routes/          # Route definitions
-│   ├── utils/           # Utility functions (JWT)
-│   └── index.ts         # Application entry point
-├── .env.example         # Example environment variables
-├── .gitignore
-├── package.json
-├── tsconfig.json
-└── README.md
-```
-
-## Scripts
-
-- `npm run dev` - Start development server with hot reloading
-- `npm run build` - Build TypeScript to JavaScript
-- `npm start` - Start production server
-- `npm run typecheck` - Run TypeScript type checking
-- `npm run seed:default` - Seed default dataset (super admin, admin, sample users, goals, logs, gold history)
 
 ## Environment Variables
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| PORT | Server port | 3000 |
-| MONGODB_URI | MongoDB connection string | mongodb://localhost:27017/ganjino |
-| JWT_SECRET | Secret key for JWT signing | - |
-| NODE_ENV | Environment (development/production) | development |
-| GOLD_API_KEY | API key for gold price source | - |
-| CORS_ORIGIN | Comma-separated allowed origins | - |
-| SEED_SUPER_ADMIN_EMAIL | Seeded super admin email | superadmin@ganjino.local |
-| SEED_SUPER_ADMIN_PASSWORD | Seeded super admin password | SuperAdmin123! |
-| SEED_ADMIN_EMAIL | Seeded admin email | admin@ganjino.local |
-| SEED_ADMIN_PASSWORD | Seeded admin password | Admin123! |
+The service reads configuration from `.env`. The currently documented variables are:
 
-## Admin Roles
+| Variable | Description |
+| --- | --- |
+| `PORT` | HTTP server port |
+| `MONGODB_URI` | MongoDB connection string |
+| `JWT_SECRET` | Secret used to sign access and refresh tokens |
+| `NODE_ENV` | Runtime mode (`development` or `production`) |
+| `GOLD_API_KEY` | API key for the external gold price provider |
+| `GOLD_API_URL` | Base URL for the external gold price provider |
+| `CORS_ORIGIN` | Comma-separated allowlist for browser clients |
+| `SEED_SUPER_ADMIN_EMAIL` | Seeded super admin email |
+| `SEED_SUPER_ADMIN_PASSWORD` | Seeded super admin password |
+| `SEED_SUPER_ADMIN_NAME` | Seeded super admin display name |
+| `SEED_ADMIN_EMAIL` | Seeded admin email |
+| `SEED_ADMIN_PASSWORD` | Seeded admin password |
+| `SEED_ADMIN_NAME` | Seeded admin display name |
 
-- `super_admin`: Full admin dashboard access, including sensitive role and user status changes.
-- `admin`: Read/security insights access in admin dashboard, without privileged mutation actions.
+## Seed Data
+
+Use the seed command to create a default working dataset for local development:
+
+```bash
+npm run seed:default
+```
+
+This script is intended to provision baseline admin accounts and sample data for testing flows across the mobile app and admin dashboard.
+
+## Operational Behavior
+
+### Startup
+
+On boot, the service:
+
+- Connects to MongoDB
+- Initializes cron jobs
+- Attempts to persist the current day’s gold price
+- Starts the HTTP server
+
+### Shutdown
+
+The server listens for `SIGINT` and `SIGTERM`, stops cron jobs, closes the HTTP server, and disconnects from MongoDB before exit.
+
+## Development Notes
+
+- Route composition happens in `src/index.ts`.
+- Environment parsing is centralized in `src/config/env.ts`.
+- Admin auth and role checks live in `src/middleware/adminAuth.ts`.
+
+## Related Projects
+
+- Mobile client: `../ganjino-app`
+- Admin dashboard: `../ganjino-admin`
+
+## Contributing
+
+For maintainable contributions:
+
+- Keep API changes backward compatible when possible
+- Update Swagger docs or route docs alongside endpoint changes
+- Include migration notes for schema or auth changes
+- Run `lint` and `typecheck` before opening a PR
+
+## License
+
+This project is currently marked as `ISC` in `package.json`.
