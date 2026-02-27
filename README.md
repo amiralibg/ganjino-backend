@@ -169,8 +169,8 @@ The server listens for `SIGINT` and `SIGTERM`, stops cron jobs, closes the HTTP 
 
 ## Related Projects
 
-- Mobile client: `../ganjino-app`
-- Admin dashboard: `../ganjino-admin`
+- Mobile client: [github.com/amiralibg/ganjino-app](https://github.com/amiralibg/ganjino-app)
+- Admin dashboard: [github.com/amiralibg/ganjino-admin](https://github.com/amiralibg/ganjino-admin)
 
 ## Contributing
 
