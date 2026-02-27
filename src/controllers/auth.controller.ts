@@ -5,6 +5,7 @@ import Profile from '../models/Profile';
 import RefreshToken, { DeviceInfo } from '../models/RefreshToken';
 import { generateAccessToken, generateRefreshToken, getRefreshTokenExpiryDate } from '../utils/jwt';
 import { AuthRequest } from '../middleware/auth';
+import { MESSAGES } from '../constants/messages';
 
 interface DeviceInfoRequest {
   deviceId?: string;
@@ -90,7 +91,7 @@ export const signUp = async (req: Request, res: Response): Promise<void> => {
     // Check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      res.status(400).json({ error: 'User already exists' });
+      res.status(400).json({ error: MESSAGES.auth.userAlreadyExists });
       return;
     }
 
@@ -118,6 +119,7 @@ export const signUp = async (req: Request, res: Response): Promise<void> => {
     const accessToken = generateAccessToken({
       userId: String(user._id),
       email: user.email,
+      role: user.role,
     });
 
     const refreshTokenString = generateRefreshToken();
@@ -134,7 +136,7 @@ export const signUp = async (req: Request, res: Response): Promise<void> => {
     await refreshToken.save();
 
     res.status(201).json({
-      message: 'User created successfully',
+      message: MESSAGES.auth.signUpSuccess,
       user: {
         id: user._id,
         email: user.email,
@@ -146,7 +148,7 @@ export const signUp = async (req: Request, res: Response): Promise<void> => {
     });
   } catch (error: unknown) {
     console.error('SignUp error:', error);
-    res.status(500).json({ error: 'Failed to create user' });
+    res.status(500).json({ error: MESSAGES.auth.failedCreateUser });
   }
 };
 
@@ -163,20 +165,20 @@ export const signIn = async (req: Request, res: Response): Promise<void> => {
     // Find user
     const user = await User.findOne({ email });
     if (!user) {
-      res.status(401).json({ error: 'Invalid credentials - User Not Found' });
+      res.status(401).json({ error: MESSAGES.auth.invalidCredentials });
       return;
     }
 
     // Check if user is active
     if (!user.isActive) {
-      res.status(403).json({ error: 'Account is deactivated' });
+      res.status(403).json({ error: MESSAGES.common.accountDeactivated });
       return;
     }
 
     // Check password
     const isPasswordValid = await user.comparePassword(String(password));
     if (!isPasswordValid) {
-      res.status(401).json({ error: 'Invalid credentials - Password is Wrong' });
+      res.status(401).json({ error: MESSAGES.auth.invalidCredentials });
       return;
     }
 
@@ -204,6 +206,7 @@ export const signIn = async (req: Request, res: Response): Promise<void> => {
     const accessToken = generateAccessToken({
       userId: String(user._id),
       email: user.email,
+      role: user.role,
     });
 
     const refreshTokenString = generateRefreshToken();
@@ -220,7 +223,7 @@ export const signIn = async (req: Request, res: Response): Promise<void> => {
     await refreshToken.save();
 
     res.status(200).json({
-      message: 'Signed in successfully',
+      message: MESSAGES.auth.signInSuccess,
       user: {
         id: user._id,
         email: user.email,
@@ -229,11 +232,11 @@ export const signIn = async (req: Request, res: Response): Promise<void> => {
       },
       accessToken,
       refreshToken: refreshTokenString,
-      warning: isSuspicious ? 'Suspicious activity detected' : undefined,
+      warning: isSuspicious ? MESSAGES.auth.suspiciousActivityDetected : undefined,
     });
   } catch (error: unknown) {
     console.error('SignIn error:', error);
-    res.status(500).json({ error: 'Failed to sign in' });
+    res.status(500).json({ error: MESSAGES.auth.failedSignIn });
   }
 };
 
@@ -242,7 +245,7 @@ export const refreshAccessToken = async (req: Request, res: Response): Promise<v
     const { refreshToken } = req.body as { refreshToken: string };
 
     if (!refreshToken) {
-      res.status(400).json({ error: 'Refresh token is required' });
+      res.status(400).json({ error: MESSAGES.auth.refreshTokenRequired });
       return;
     }
 
@@ -253,20 +256,20 @@ export const refreshAccessToken = async (req: Request, res: Response): Promise<v
     });
 
     if (!storedToken) {
-      res.status(401).json({ error: 'Invalid refresh token' });
+      res.status(401).json({ error: MESSAGES.auth.invalidRefreshToken });
       return;
     }
 
     // Check if token is expired
     if (storedToken.expiresAt < new Date()) {
-      res.status(401).json({ error: 'Refresh token expired' });
+      res.status(401).json({ error: MESSAGES.auth.refreshTokenExpired });
       return;
     }
 
     // Find user
     const user = await User.findById(storedToken.userId);
     if (!user || !user.isActive) {
-      res.status(401).json({ error: 'User not found or inactive' });
+      res.status(401).json({ error: MESSAGES.auth.userNotFoundOrInactive });
       return;
     }
 
@@ -305,6 +308,7 @@ export const refreshAccessToken = async (req: Request, res: Response): Promise<v
     const accessToken = generateAccessToken({
       userId: String(user._id),
       email: user.email,
+      role: user.role,
     });
 
     res.status(200).json({
@@ -313,7 +317,7 @@ export const refreshAccessToken = async (req: Request, res: Response): Promise<v
     });
   } catch (error: unknown) {
     console.error('RefreshToken error:', error);
-    res.status(500).json({ error: 'Failed to refresh token' });
+    res.status(500).json({ error: MESSAGES.auth.failedRefreshToken });
   }
 };
 
@@ -322,7 +326,7 @@ export const logout = async (req: Request, res: Response): Promise<void> => {
     const { refreshToken } = req.body as { refreshToken: string };
 
     if (!refreshToken) {
-      res.status(400).json({ error: 'Refresh token is required' });
+      res.status(400).json({ error: MESSAGES.auth.refreshTokenRequired });
       return;
     }
 
@@ -335,10 +339,10 @@ export const logout = async (req: Request, res: Response): Promise<void> => {
       await storedToken.save();
     }
 
-    res.status(200).json({ message: 'Logged out successfully' });
+    res.status(200).json({ message: MESSAGES.auth.logoutSuccess });
   } catch (error: unknown) {
     console.error('Logout error:', error);
-    res.status(500).json({ error: 'Failed to logout' });
+    res.status(500).json({ error: MESSAGES.auth.failedLogout });
   }
 };
 
@@ -347,7 +351,7 @@ export const logoutAllDevices = async (req: AuthRequest, res: Response): Promise
     const userId = req.userId;
 
     if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
+      res.status(401).json({ error: MESSAGES.common.unauthorized });
       return;
     }
 
@@ -366,12 +370,12 @@ export const logoutAllDevices = async (req: AuthRequest, res: Response): Promise
     );
 
     res.status(200).json({
-      message: 'Logged out from all devices successfully',
+      message: MESSAGES.auth.logoutAllDevicesSuccess,
       revokedCount: result.modifiedCount,
     });
   } catch (error: unknown) {
     console.error('LogoutAllDevices error:', error);
-    res.status(500).json({ error: 'Failed to logout from all devices' });
+    res.status(500).json({ error: MESSAGES.auth.failedLogoutAllDevices });
   }
 };
 
@@ -380,7 +384,7 @@ export const getActiveSessions = async (req: AuthRequest, res: Response): Promis
     const userId = req.userId;
 
     if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
+      res.status(401).json({ error: MESSAGES.common.unauthorized });
       return;
     }
 
@@ -404,7 +408,7 @@ export const getActiveSessions = async (req: AuthRequest, res: Response): Promis
     });
   } catch (error: unknown) {
     console.error('GetActiveSessions error:', error);
-    res.status(500).json({ error: 'Failed to get active sessions' });
+    res.status(500).json({ error: MESSAGES.auth.failedGetActiveSessions });
   }
 };
 
@@ -414,7 +418,7 @@ export const revokeSession = async (req: AuthRequest, res: Response): Promise<vo
     const { sessionId } = req.params;
 
     if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
+      res.status(401).json({ error: MESSAGES.common.unauthorized });
       return;
     }
 
@@ -424,7 +428,7 @@ export const revokeSession = async (req: AuthRequest, res: Response): Promise<vo
     });
 
     if (!session) {
-      res.status(404).json({ error: 'Session not found' });
+      res.status(404).json({ error: MESSAGES.auth.sessionNotFound });
       return;
     }
 
@@ -432,10 +436,10 @@ export const revokeSession = async (req: AuthRequest, res: Response): Promise<vo
     session.revokedAt = new Date();
     await session.save();
 
-    res.status(200).json({ message: 'Session revoked successfully' });
+    res.status(200).json({ message: MESSAGES.auth.sessionRevokedSuccess });
   } catch (error: unknown) {
     console.error('RevokeSession error:', error);
-    res.status(500).json({ error: 'Failed to revoke session' });
+    res.status(500).json({ error: MESSAGES.auth.failedRevokeSession });
   }
 };
 
@@ -446,12 +450,12 @@ export const validateToken = async (req: AuthRequest, res: Response): Promise<vo
 
     const user = await User.findById(userId).select('-password');
     if (!user) {
-      res.status(404).json({ error: 'User not found' });
+      res.status(404).json({ error: MESSAGES.common.userNotFound });
       return;
     }
 
     if (!user.isActive) {
-      res.status(403).json({ error: 'Account is deactivated' });
+      res.status(403).json({ error: MESSAGES.common.accountDeactivated });
       return;
     }
 
@@ -466,7 +470,7 @@ export const validateToken = async (req: AuthRequest, res: Response): Promise<vo
     });
   } catch (error: unknown) {
     console.error('ValidateToken error:', error);
-    res.status(500).json({ error: 'Failed to validate token' });
+    res.status(500).json({ error: MESSAGES.auth.failedValidateToken });
   }
 };
 
@@ -476,7 +480,7 @@ export const getMe = async (req: Request, res: Response): Promise<void> => {
 
     const user = await User.findById(userId).select('-password');
     if (!user) {
-      res.status(404).json({ error: 'User not found' });
+      res.status(404).json({ error: MESSAGES.common.userNotFound });
       return;
     }
 
@@ -491,6 +495,6 @@ export const getMe = async (req: Request, res: Response): Promise<void> => {
     });
   } catch (error: unknown) {
     console.error('GetMe error:', error);
-    res.status(500).json({ error: 'Failed to get user' });
+    res.status(500).json({ error: MESSAGES.auth.failedGetUser });
   }
 };

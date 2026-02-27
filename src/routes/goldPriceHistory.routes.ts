@@ -1,11 +1,16 @@
-import express from 'express';
+import express, { Router } from 'express';
+import { query } from 'express-validator';
 import {
   getGoldPriceHistoryController,
   storeTodayPriceController,
   seedHistoricalPricesController,
 } from '../controllers/goldPriceHistory.controller';
+import { authenticateToken } from '../middleware/auth';
+import { requireAdmin } from '../middleware/adminAuth';
+import { validateRequest } from '../middleware/validateRequest';
+import { MESSAGES } from '../constants/messages';
 
-const router = express.Router();
+const router: Router = express.Router();
 
 /**
  * @swagger
@@ -74,7 +79,23 @@ const router = express.Router();
  *       500:
  *         description: Server error
  */
-router.get('/', getGoldPriceHistoryController);
+router.get(
+  '/',
+  [
+    query('startDate').optional().isISO8601().withMessage(MESSAGES.validation.dateFormatInvalid),
+    query('endDate').optional().isISO8601().withMessage(MESSAGES.validation.dateFormatInvalid),
+    query('days')
+      .optional()
+      .isInt({ min: 1, max: 3650 })
+      .withMessage(MESSAGES.goldHistory.invalidDaysRange),
+    query('limit')
+      .optional()
+      .isInt({ min: 1, max: 5000 })
+      .withMessage(MESSAGES.goldHistory.invalidLimit),
+  ],
+  validateRequest,
+  getGoldPriceHistoryController
+);
 
 /**
  * @swagger
@@ -89,7 +110,7 @@ router.get('/', getGoldPriceHistoryController);
  *       500:
  *         description: Server error
  */
-router.post('/store-today', storeTodayPriceController);
+router.post('/store-today', authenticateToken, requireAdmin, storeTodayPriceController);
 
 /**
  * @swagger
@@ -111,6 +132,18 @@ router.post('/store-today', storeTodayPriceController);
  *       500:
  *         description: Server error
  */
-router.post('/seed', seedHistoricalPricesController);
+router.post(
+  '/seed',
+  authenticateToken,
+  requireAdmin,
+  [
+    query('days')
+      .optional()
+      .isInt({ min: 1, max: 3650 })
+      .withMessage(MESSAGES.goldHistory.invalidDaysRange),
+  ],
+  validateRequest,
+  seedHistoricalPricesController
+);
 
 export default router;

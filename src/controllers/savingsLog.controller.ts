@@ -4,6 +4,8 @@ import mongoose, { FilterQuery } from 'mongoose';
 import SavingsLog, { ISavingsLog } from '../models/SavingsLog';
 import Goal from '../models/Goal';
 import { AuthRequest } from '../middleware/auth';
+import { MESSAGES } from '../constants/messages';
+import { get18KGoldPrice } from '../services/goldPrice.service';
 
 /**
  * Create a new savings log entry
@@ -21,37 +23,135 @@ export const createSavingsLog = async (req: AuthRequest, res: Response): Promise
       amount: number;
       type?: string;
       goalId?: string;
+      goalAllocations?: Array<{ goalId: string; amount: number }>;
       note?: string;
       date?: string;
     };
+    const { goalAllocations } = req.body as {
+      goalAllocations?: Array<{ goalId: string; amount: number }>;
+    };
+
+    if (goalId && goalAllocations && goalAllocations.length > 0) {
+      res.status(400).json({ error: MESSAGES.savings.goalIdAndAllocationsConflict });
+      return;
+    }
 
     // Validate goalId if provided
     if (goalId) {
       const goal = await Goal.findOne({ _id: goalId, userId });
       if (!goal) {
-        res.status(404).json({ error: 'Goal not found' });
+        res.status(404).json({ error: MESSAGES.savings.goalNotFound });
         return;
       }
     }
+
+    const requestedAllocations =
+      goalAllocations && goalAllocations.length > 0
+        ? goalAllocations
+        : goalId
+          ? [{ goalId, amount: Number(amount) }]
+          : [];
+
+    const allocationMap = new Map<string, number>();
+    for (const allocation of requestedAllocations) {
+      const allocationGoalId = String(allocation.goalId || '');
+      const allocationAmount = Number(allocation.amount);
+
+      if (!mongoose.isValidObjectId(allocationGoalId)) {
+        res.status(400).json({ error: MESSAGES.savings.invalidGoalId });
+        return;
+      }
+
+      if (!Number.isFinite(allocationAmount) || allocationAmount <= 0) {
+        res.status(400).json({ error: MESSAGES.savings.invalidAllocationAmount });
+        return;
+      }
+
+      allocationMap.set(
+        allocationGoalId,
+        (allocationMap.get(allocationGoalId) || 0) + allocationAmount
+      );
+    }
+
+    const mergedAllocations = Array.from(allocationMap.entries()).map(
+      ([goalIdValue, amountValue]) => ({
+        goalId: goalIdValue,
+        amount: amountValue,
+      })
+    );
+
+    const totalAllocated = mergedAllocations.reduce(
+      (sum, allocation) => sum + allocation.amount,
+      0
+    );
+    if (totalAllocated > Number(amount)) {
+      res.status(400).json({ error: MESSAGES.savings.allocatedAmountExceedsLog });
+      return;
+    }
+
+    let currentGoldPrice: number | null = null;
+    if ((type || 'money') === 'money' && mergedAllocations.length > 0) {
+      currentGoldPrice = await get18KGoldPrice();
+    }
+
+    const allocationGoalIds = mergedAllocations.map((allocation) => allocation.goalId);
+    if (allocationGoalIds.length > 0) {
+      const goals = await Goal.find({
+        _id: { $in: allocationGoalIds },
+        userId,
+      }).select('_id');
+
+      if (goals.length !== allocationGoalIds.length) {
+        res.status(404).json({ error: MESSAGES.savings.goalNotFound });
+        return;
+      }
+    }
+
+    const normalizedAllocations = mergedAllocations.map((allocation) => {
+      const allocatedGoldAmount =
+        (type || 'money') === 'gold'
+          ? allocation.amount
+          : currentGoldPrice && currentGoldPrice > 0
+            ? allocation.amount / currentGoldPrice
+            : 0;
+
+      return {
+        goalId: new mongoose.Types.ObjectId(allocation.goalId),
+        amount: allocation.amount,
+        allocatedGoldAmount,
+      };
+    });
 
     const savingsLog = new SavingsLog({
       userId,
       amount: Number(amount),
       type: type || 'money',
       goalId: goalId || undefined,
+      goalAllocations: normalizedAllocations,
       note: note || undefined,
       date: date ? new Date(String(date)) : new Date(),
     });
 
     await savingsLog.save();
 
+    if (normalizedAllocations.length > 0) {
+      await Promise.all(
+        normalizedAllocations.map((allocation) =>
+          Goal.updateOne(
+            { _id: allocation.goalId, userId },
+            { $inc: { savedGoldAmount: allocation.allocatedGoldAmount } }
+          )
+        )
+      );
+    }
+
     res.status(201).json({
-      message: 'Savings log created successfully',
+      message: MESSAGES.savings.createdSuccess,
       savingsLog,
     });
   } catch (error: unknown) {
     console.error('CreateSavingsLog error:', error);
-    res.status(500).json({ error: 'Failed to create savings log' });
+    res.status(500).json({ error: MESSAGES.savings.failedCreate });
   }
 };
 
@@ -69,31 +169,65 @@ export const getSavingsLogs = async (req: AuthRequest, res: Response): Promise<v
     if (startDate || endDate) {
       const dateQuery: { $gte?: Date; $lte?: Date } = {};
       if (startDate) {
-        dateQuery.$gte = new Date(startDate as string);
+        const parsedStartDate = new Date(startDate as string);
+        if (Number.isNaN(parsedStartDate.getTime())) {
+          res.status(400).json({ error: MESSAGES.common.invalidStartDate });
+          return;
+        }
+        dateQuery.$gte = parsedStartDate;
       }
       if (endDate) {
-        dateQuery.$lte = new Date(endDate as string);
+        const parsedEndDate = new Date(endDate as string);
+        if (Number.isNaN(parsedEndDate.getTime())) {
+          res.status(400).json({ error: MESSAGES.common.invalidEndDate });
+          return;
+        }
+        dateQuery.$lte = parsedEndDate;
+      }
+      if (dateQuery.$gte && dateQuery.$lte && dateQuery.$gte > dateQuery.$lte) {
+        res.status(400).json({ error: MESSAGES.common.startDateMustBeBeforeEndDate });
+        return;
       }
       filter.date = dateQuery;
     }
 
     if (type) {
-      filter.type = type as 'money' | 'gold';
+      if (type !== 'money' && type !== 'gold') {
+        res.status(400).json({ error: MESSAGES.savings.invalidType });
+        return;
+      }
+      filter.type = type;
     }
 
     if (goalId) {
-      filter.goalId = goalId as unknown as mongoose.Types.ObjectId;
+      if (!mongoose.isValidObjectId(goalId)) {
+        res.status(400).json({ error: MESSAGES.savings.invalidGoalId });
+        return;
+      }
+
+      if (typeof goalId !== 'string') {
+        res.status(400).json({ error: MESSAGES.savings.invalidGoalId });
+        return;
+      }
+
+      filter.goalId = new mongoose.Types.ObjectId(goalId);
+    }
+
+    const parsedLimit = Number(limit);
+    if (!Number.isFinite(parsedLimit) || parsedLimit <= 0 || parsedLimit > 500) {
+      res.status(400).json({ error: MESSAGES.savings.invalidLogsLimit });
+      return;
     }
 
     const savingsLogs = await SavingsLog.find(filter)
       .populate('goalId', 'name price goldEquivalent')
       .sort({ date: -1 })
-      .limit(Number(limit));
+      .limit(parsedLimit);
 
     res.status(200).json({ savingsLogs });
   } catch (error: unknown) {
     console.error('GetSavingsLogs error:', error);
-    res.status(500).json({ error: 'Failed to fetch savings logs' });
+    res.status(500).json({ error: MESSAGES.savings.failedFetchLogs });
   }
 };
 
@@ -108,16 +242,16 @@ export const deleteSavingsLog = async (req: AuthRequest, res: Response): Promise
     const savingsLog = await SavingsLog.findOne({ _id: id, userId });
 
     if (!savingsLog) {
-      res.status(404).json({ error: 'Savings log not found' });
+      res.status(404).json({ error: MESSAGES.savings.notFound });
       return;
     }
 
     await SavingsLog.deleteOne({ _id: id });
 
-    res.status(200).json({ message: 'Savings log deleted successfully' });
+    res.status(200).json({ message: MESSAGES.savings.deletedSuccess });
   } catch (error: unknown) {
     console.error('DeleteSavingsLog error:', error);
-    res.status(500).json({ error: 'Failed to delete savings log' });
+    res.status(500).json({ error: MESSAGES.savings.failedDelete });
   }
 };
 
@@ -128,14 +262,32 @@ export const getSavingsAnalytics = async (req: AuthRequest, res: Response): Prom
   try {
     const userId = req.userId;
     const { period = 'month', startDate, endDate } = req.query;
+    if (period !== 'day' && period !== 'week' && period !== 'month') {
+      res.status(400).json({ error: MESSAGES.savings.invalidPeriod });
+      return;
+    }
 
     // Build date filter
     const dateFilter: { $gte?: Date; $lte?: Date } = {};
     if (startDate) {
-      dateFilter.$gte = new Date(startDate as string);
+      const parsedStartDate = new Date(startDate as string);
+      if (Number.isNaN(parsedStartDate.getTime())) {
+        res.status(400).json({ error: MESSAGES.common.invalidStartDate });
+        return;
+      }
+      dateFilter.$gte = parsedStartDate;
     }
     if (endDate) {
-      dateFilter.$lte = new Date(endDate as string);
+      const parsedEndDate = new Date(endDate as string);
+      if (Number.isNaN(parsedEndDate.getTime())) {
+        res.status(400).json({ error: MESSAGES.common.invalidEndDate });
+        return;
+      }
+      dateFilter.$lte = parsedEndDate;
+    }
+    if (dateFilter.$gte && dateFilter.$lte && dateFilter.$gte > dateFilter.$lte) {
+      res.status(400).json({ error: MESSAGES.common.startDateMustBeBeforeEndDate });
+      return;
     }
 
     // Default to last 30 days if no dates provided
@@ -215,6 +367,6 @@ export const getSavingsAnalytics = async (req: AuthRequest, res: Response): Prom
     });
   } catch (error: unknown) {
     console.error('GetSavingsAnalytics error:', error);
-    res.status(500).json({ error: 'Failed to fetch analytics' });
+    res.status(500).json({ error: MESSAGES.savings.failedFetchAnalytics });
   }
 };

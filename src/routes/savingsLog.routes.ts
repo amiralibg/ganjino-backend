@@ -1,5 +1,5 @@
-import express from 'express';
-import { body } from 'express-validator';
+import express, { Router } from 'express';
+import { body, query } from 'express-validator';
 import {
   createSavingsLog,
   getSavingsLogs,
@@ -7,8 +7,10 @@ import {
   getSavingsAnalytics,
 } from '../controllers/savingsLog.controller';
 import { authenticateToken } from '../middleware/auth';
+import { MESSAGES } from '../constants/messages';
+import { validateRequest } from '../middleware/validateRequest';
 
-const router = express.Router();
+const router: Router = express.Router();
 
 /**
  * @swagger
@@ -64,18 +66,30 @@ router.post(
   '/',
   authenticateToken,
   [
-    body('amount').isFloat({ min: 0 }).withMessage('Amount must be positive'),
+    body('amount').isFloat({ min: 0 }).withMessage(MESSAGES.validation.amountPositive),
     body('type')
       .optional()
       .isIn(['money', 'gold'])
-      .withMessage('Type must be either money or gold'),
-    body('goalId').optional().isMongoId().withMessage('Invalid goal ID'),
+      .withMessage(MESSAGES.validation.savingsTypeValid),
+    body('goalId').optional().isMongoId().withMessage(MESSAGES.validation.goalIdValid),
+    body('goalAllocations')
+      .optional()
+      .isArray()
+      .withMessage(MESSAGES.validation.goalAllocationsArray),
+    body('goalAllocations.*.goalId')
+      .optional()
+      .isMongoId()
+      .withMessage(MESSAGES.validation.goalAllocationGoalIdValid),
+    body('goalAllocations.*.amount')
+      .optional()
+      .isFloat({ min: 0.000001 })
+      .withMessage(MESSAGES.validation.goalAllocationAmountPositive),
     body('note')
       .optional()
       .isString()
       .isLength({ max: 500 })
-      .withMessage('Note must be less than 500 characters'),
-    body('date').optional().isISO8601().withMessage('Invalid date format'),
+      .withMessage(MESSAGES.validation.noteMax500),
+    body('date').optional().isISO8601().withMessage(MESSAGES.validation.dateFormatInvalid),
   ],
   createSavingsLog
 );
@@ -124,7 +138,25 @@ router.post(
  *       401:
  *         description: Unauthorized
  */
-router.get('/', authenticateToken, getSavingsLogs);
+router.get(
+  '/',
+  authenticateToken,
+  [
+    query('startDate').optional().isISO8601().withMessage(MESSAGES.validation.dateFormatInvalid),
+    query('endDate').optional().isISO8601().withMessage(MESSAGES.validation.dateFormatInvalid),
+    query('type')
+      .optional()
+      .isIn(['money', 'gold'])
+      .withMessage(MESSAGES.validation.savingsTypeValid),
+    query('goalId').optional().isMongoId().withMessage(MESSAGES.validation.goalIdValid),
+    query('limit')
+      .optional()
+      .isInt({ min: 1, max: 500 })
+      .withMessage(MESSAGES.savings.invalidLogsLimit),
+  ],
+  validateRequest,
+  getSavingsLogs
+);
 
 /**
  * @swagger
@@ -160,7 +192,20 @@ router.get('/', authenticateToken, getSavingsLogs);
  *       401:
  *         description: Unauthorized
  */
-router.get('/analytics', authenticateToken, getSavingsAnalytics);
+router.get(
+  '/analytics',
+  authenticateToken,
+  [
+    query('period')
+      .optional()
+      .isIn(['day', 'week', 'month'])
+      .withMessage(MESSAGES.savings.invalidPeriod),
+    query('startDate').optional().isISO8601().withMessage(MESSAGES.validation.dateFormatInvalid),
+    query('endDate').optional().isISO8601().withMessage(MESSAGES.validation.dateFormatInvalid),
+  ],
+  validateRequest,
+  getSavingsAnalytics
+);
 
 /**
  * @swagger

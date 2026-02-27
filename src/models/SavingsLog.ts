@@ -44,6 +44,11 @@ export interface ISavingsLog extends Document {
   amount: number; // In currency (Toman) or gold (grams) depending on type
   type: 'money' | 'gold';
   goalId?: mongoose.Types.ObjectId; // Optional: which goal this savings is for
+  goalAllocations: Array<{
+    goalId: mongoose.Types.ObjectId;
+    amount: number; // Same unit as log type (money/gold)
+    allocatedGoldAmount: number; // Normalized to grams for goal progress updates
+  }>;
   note?: string;
   date: Date; // When the savings occurred
   createdAt: Date;
@@ -74,6 +79,25 @@ const SavingsLogSchema: Schema = new Schema(
       ref: 'Goal',
       required: false,
     },
+    goalAllocations: [
+      {
+        goalId: {
+          type: Schema.Types.ObjectId,
+          ref: 'Goal',
+          required: true,
+        },
+        amount: {
+          type: Number,
+          required: true,
+          min: 0,
+        },
+        allocatedGoldAmount: {
+          type: Number,
+          required: true,
+          min: 0,
+        },
+      },
+    ],
     note: {
       type: String,
       trim: true,

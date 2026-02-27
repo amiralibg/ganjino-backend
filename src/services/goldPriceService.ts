@@ -2,7 +2,7 @@ import GoldPriceHistory from '../models/GoldPriceHistory';
 import { get18KGoldPrice } from './goldPrice.service';
 
 /**
- * Fetch current gold price from TGJU API
+ * Fetch current gold price from BrsApi (via goldPrice.service)
  */
 export const fetchCurrentGoldPrice = async (): Promise<number> => {
   try {
@@ -50,7 +50,7 @@ export const storeTodayGoldPrice = async (): Promise<void> => {
     const priceRecord = new GoldPriceHistory({
       price: currentPrice,
       date: today,
-      source: 'tgju.org',
+      source: 'brsapi.ir',
     });
 
     await priceRecord.save();

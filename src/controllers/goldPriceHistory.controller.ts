@@ -4,6 +4,7 @@ import {
   seedHistoricalPrices,
   storeTodayGoldPrice,
 } from '../services/goldPriceService';
+import { MESSAGES } from '../constants/messages';
 
 /**
  * Get historical gold prices
@@ -20,9 +21,17 @@ export const getGoldPriceHistoryController = async (req: Request, res: Response)
       // Use provided date range
       start = new Date(startDate as string);
       end = new Date(endDate as string);
+      if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) {
+        res.status(400).json({ error: MESSAGES.goldHistory.invalidDateRange });
+        return;
+      }
     } else if (days) {
       // Use days parameter (e.g., last 30 days)
       const numDays = parseInt(days as string, 10);
+      if (!Number.isFinite(numDays) || numDays <= 0 || numDays > 3650) {
+        res.status(400).json({ error: MESSAGES.goldHistory.invalidDaysRange });
+        return;
+      }
       start = new Date();
       start.setDate(start.getDate() - numDays);
       start.setUTCHours(0, 0, 0, 0);
@@ -33,9 +42,13 @@ export const getGoldPriceHistoryController = async (req: Request, res: Response)
       start.setUTCHours(0, 0, 0, 0);
     }
 
-    const maxLimit = limit ? parseInt(limit as string, 10) : 365;
+    const parsedLimit = limit ? parseInt(limit as string, 10) : 365;
+    if (!Number.isFinite(parsedLimit) || parsedLimit <= 0 || parsedLimit > 5000) {
+      res.status(400).json({ error: MESSAGES.goldHistory.invalidLimit });
+      return;
+    }
 
-    const history = await getGoldPriceHistory(start, end, maxLimit);
+    const history = await getGoldPriceHistory(start, end, parsedLimit);
 
     res.status(200).json({
       history,
@@ -45,7 +58,7 @@ export const getGoldPriceHistoryController = async (req: Request, res: Response)
     });
   } catch (error: unknown) {
     console.error('GetGoldPriceHistory error:', error);
-    res.status(500).json({ error: 'Failed to fetch gold price history' });
+    res.status(500).json({ error: MESSAGES.goldHistory.fetchedFailed });
   }
 };
 
@@ -56,10 +69,10 @@ export const getGoldPriceHistoryController = async (req: Request, res: Response)
 export const storeTodayPriceController = async (_req: Request, res: Response): Promise<void> => {
   try {
     await storeTodayGoldPrice();
-    res.status(200).json({ message: 'Gold price stored successfully' });
+    res.status(200).json({ message: MESSAGES.goldHistory.storeTodaySuccess });
   } catch (error: unknown) {
     console.error('StoreTodayPrice error:', error);
-    res.status(500).json({ error: 'Failed to store gold price' });
+    res.status(500).json({ error: MESSAGES.goldHistory.storeTodayFailed });
   }
 };
 
@@ -73,14 +86,18 @@ export const seedHistoricalPricesController = async (
   try {
     const { days } = req.query;
     const numDays = days ? parseInt(days as string, 10) : 30;
+    if (!Number.isFinite(numDays) || numDays <= 0 || numDays > 3650) {
+      res.status(400).json({ error: MESSAGES.goldHistory.invalidDaysRange });
+      return;
+    }
 
     await seedHistoricalPrices(numDays);
 
     res.status(200).json({
-      message: `Seeded ${numDays} days of historical gold prices`,
+      message: `${MESSAGES.goldHistory.seedSuccess} (${numDays} روز)`,
     });
   } catch (error: unknown) {
     console.error('SeedHistoricalPrices error:', error);
-    res.status(500).json({ error: 'Failed to seed historical prices' });
+    res.status(500).json({ error: MESSAGES.goldHistory.seedFailed });
   }
 };

@@ -31,6 +31,9 @@ export interface IProfile extends Document {
   monthlySalary: number;
   monthlySavingsPercentage: number; // Percentage of salary to save (0-100)
   currency: string;
+  notificationsEnabled: boolean;
+  expoPushToken?: string;
+  goldPriceAlertThreshold?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -59,6 +62,19 @@ const ProfileSchema: Schema = new Schema(
       type: String,
       default: 'USD',
       trim: true,
+    },
+    notificationsEnabled: {
+      type: Boolean,
+      default: false,
+    },
+    expoPushToken: {
+      type: String,
+      trim: true,
+    },
+    goldPriceAlertThreshold: {
+      type: Number,
+      min: 0,
+      default: 0,
     },
   },
   {

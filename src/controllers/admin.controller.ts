@@ -5,10 +5,12 @@ import RefreshToken from '../models/RefreshToken';
 import { AuthRequest } from '../middleware/auth';
 import { FilterQuery } from 'mongoose';
 import { IUser } from '../models/User';
+import { MESSAGES } from '../constants/messages';
 
 export const getAllUsers = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { page = 1, limit = 20, search } = req.query;
+    const { page = 1, limit = 20, search, role, status, sortBy = 'createdAt', sortOrder = 'desc' } =
+      req.query;
     const query: FilterQuery<IUser> = {};
 
     if (search) {
@@ -18,11 +20,28 @@ export const getAllUsers = async (req: AuthRequest, res: Response): Promise<void
       ];
     }
 
+    if (role && role !== 'all') {
+      query.role = role as IUser['role'];
+    }
+
+    if (status && status !== 'all') {
+      query.isActive = status === 'active';
+    }
+
+    const resolvedSortBy = String(sortBy);
+    const resolvedSortOrder = sortOrder === 'asc' ? 1 : -1;
+    const sortFieldMap: Record<string, 'createdAt' | 'name' | 'email'> = {
+      createdAt: 'createdAt',
+      name: 'name',
+      email: 'email',
+    };
+    const sortField = sortFieldMap[resolvedSortBy] || 'createdAt';
+
     const users = await User.find(query)
       .select('-password')
       .limit(Number(limit))
       .skip((Number(page) - 1) * Number(limit))
-      .sort({ createdAt: -1 });
+      .sort({ [sortField]: resolvedSortOrder });
 
     const total = await User.countDocuments(query);
 
@@ -36,7 +55,7 @@ export const getAllUsers = async (req: AuthRequest, res: Response): Promise<void
     });
   } catch (error: unknown) {
     console.error('GetAllUsers error:', error);
-    res.status(500).json({ error: 'Failed to fetch users' });
+    res.status(500).json({ error: MESSAGES.admin.failedFetchUsers });
   }
 };
 
@@ -46,7 +65,7 @@ export const getUserDetails = async (req: AuthRequest, res: Response): Promise<v
 
     const user = await User.findById(userId).select('-password');
     if (!user) {
-      res.status(404).json({ error: 'User not found' });
+      res.status(404).json({ error: MESSAGES.common.userNotFound });
       return;
     }
 
@@ -68,7 +87,7 @@ export const getUserDetails = async (req: AuthRequest, res: Response): Promise<v
     });
   } catch (error: unknown) {
     console.error('GetUserDetails error:', error);
-    res.status(500).json({ error: 'Failed to fetch user details' });
+    res.status(500).json({ error: MESSAGES.admin.failedFetchUserDetails });
   }
 };
 
@@ -78,7 +97,7 @@ export const toggleUserStatus = async (req: AuthRequest, res: Response): Promise
 
     const user = await User.findById(userId);
     if (!user) {
-      res.status(404).json({ error: 'User not found' });
+      res.status(404).json({ error: MESSAGES.common.userNotFound });
       return;
     }
 
@@ -93,7 +112,7 @@ export const toggleUserStatus = async (req: AuthRequest, res: Response): Promise
     }
 
     res.status(200).json({
-      message: 'User status updated successfully',
+      message: MESSAGES.admin.userStatusUpdatedSuccess,
       user: {
         id: user._id,
         email: user.email,
@@ -102,7 +121,7 @@ export const toggleUserStatus = async (req: AuthRequest, res: Response): Promise
     });
   } catch (error: unknown) {
     console.error('ToggleUserStatus error:', error);
-    res.status(500).json({ error: 'Failed to update user status' });
+    res.status(500).json({ error: MESSAGES.admin.failedUpdateUserStatus });
   }
 };
 
@@ -112,7 +131,12 @@ export const promoteToAdmin = async (req: AuthRequest, res: Response): Promise<v
 
     const user = await User.findById(userId);
     if (!user) {
-      res.status(404).json({ error: 'User not found' });
+      res.status(404).json({ error: MESSAGES.common.userNotFound });
+      return;
+    }
+
+    if (user.role === 'super_admin') {
+      res.status(400).json({ error: MESSAGES.admin.failedPromoteUser });
       return;
     }
 
@@ -120,7 +144,7 @@ export const promoteToAdmin = async (req: AuthRequest, res: Response): Promise<v
     await user.save();
 
     res.status(200).json({
-      message: 'User promoted to admin successfully',
+      message: MESSAGES.admin.userPromotedSuccess,
       user: {
         id: user._id,
         email: user.email,
@@ -129,7 +153,39 @@ export const promoteToAdmin = async (req: AuthRequest, res: Response): Promise<v
     });
   } catch (error: unknown) {
     console.error('PromoteToAdmin error:', error);
-    res.status(500).json({ error: 'Failed to promote user' });
+    res.status(500).json({ error: MESSAGES.admin.failedPromoteUser });
+  }
+};
+
+export const demoteAdminToUser = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { userId } = req.params;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      res.status(404).json({ error: MESSAGES.common.userNotFound });
+      return;
+    }
+
+    if (user.role === 'super_admin') {
+      res.status(400).json({ error: MESSAGES.admin.cannotDemoteSuperAdmin });
+      return;
+    }
+
+    user.role = 'user';
+    await user.save();
+
+    res.status(200).json({
+      message: MESSAGES.admin.userDemotedSuccess,
+      user: {
+        id: user._id,
+        email: user.email,
+        role: user.role,
+      },
+    });
+  } catch (error: unknown) {
+    console.error('DemoteAdminToUser error:', error);
+    res.status(500).json({ error: MESSAGES.admin.failedDemoteUser });
   }
 };
 
@@ -149,6 +205,31 @@ export const getSecurityInsights = async (req: AuthRequest, res: Response): Prom
       .sort({ createdAt: -1 })
       .limit(100);
 
+    const timelineMap = new Map<string, number>();
+    for (let i = 23; i >= 0; i -= 1) {
+      const hourDate = new Date();
+      hourDate.setMinutes(0, 0, 0);
+      hourDate.setHours(hourDate.getHours() - i);
+      const hourKey = `${hourDate.getFullYear()}-${hourDate.getMonth()}-${hourDate.getDate()}-${hourDate.getHours()}`;
+      timelineMap.set(hourKey, 0);
+    }
+    for (const login of recentLogins) {
+      const created = new Date(login.createdAt);
+      created.setMinutes(0, 0, 0);
+      const hourKey = `${created.getFullYear()}-${created.getMonth()}-${created.getDate()}-${created.getHours()}`;
+      if (timelineMap.has(hourKey)) {
+        timelineMap.set(hourKey, (timelineMap.get(hourKey) || 0) + 1);
+      }
+    }
+    const loginTimeline24h = Array.from(timelineMap.entries()).map(([key, count]) => {
+      const parts = key.split('-');
+      const hour = Number(parts[3]);
+      return {
+        label: `${String(hour).padStart(2, '0')}:00`,
+        count,
+      };
+    });
+
     const stats = {
       totalActiveSessions: await RefreshToken.countDocuments({
         isRevoked: false,
@@ -162,10 +243,11 @@ export const getSecurityInsights = async (req: AuthRequest, res: Response): Prom
       stats,
       suspiciousSessions,
       recentLogins,
+      loginTimeline24h,
     });
   } catch (error: unknown) {
     console.error('GetSecurityInsights error:', error);
-    res.status(500).json({ error: 'Failed to fetch security insights' });
+    res.status(500).json({ error: MESSAGES.admin.failedFetchSecurityInsights });
   }
 };
 
@@ -173,7 +255,8 @@ export const getDashboardStats = async (req: AuthRequest, res: Response): Promis
   try {
     const totalUsers = await User.countDocuments();
     const activeUsers = await User.countDocuments({ isActive: true });
-    const admins = await User.countDocuments({ role: 'admin' });
+    const admins = await User.countDocuments({ role: { $in: ['admin', 'super_admin'] } });
+    const superAdmins = await User.countDocuments({ role: 'super_admin' });
     const totalGoals = await Goal.countDocuments();
     const wishlistedGoals = await Goal.countDocuments({ isWishlisted: true });
     const activeSessions = await RefreshToken.countDocuments({
@@ -187,6 +270,7 @@ export const getDashboardStats = async (req: AuthRequest, res: Response): Promis
         active: activeUsers,
         inactive: totalUsers - activeUsers,
         admins,
+        superAdmins,
       },
       goals: {
         total: totalGoals,
@@ -198,6 +282,6 @@ export const getDashboardStats = async (req: AuthRequest, res: Response): Promis
     });
   } catch (error: unknown) {
     console.error('GetDashboardStats error:', error);
-    res.status(500).json({ error: 'Failed to fetch dashboard stats' });
+    res.status(500).json({ error: MESSAGES.admin.failedFetchDashboardStats });
   }
 };

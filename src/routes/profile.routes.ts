@@ -2,8 +2,9 @@ import { Router } from 'express';
 import { body } from 'express-validator';
 import { getProfile, updateProfile } from '../controllers/profile.controller';
 import { authenticateToken } from '../middleware/auth';
+import { MESSAGES } from '../constants/messages';
 
-const router = Router();
+const router: Router = Router();
 
 // All routes require authentication
 router.use(authenticateToken);
@@ -76,8 +77,18 @@ router.put(
     body('monthlySalary')
       .optional()
       .isFloat({ min: 0 })
-      .withMessage('Monthly salary must be a positive number'),
-    body('currency').optional().isString().withMessage('Currency must be a string'),
+      .withMessage(MESSAGES.validation.monthlySalaryPositive),
+    body('currency').optional().isString().withMessage(MESSAGES.validation.currencyString),
+    body('monthlySavingsPercentage')
+      .optional()
+      .isFloat({ min: 0, max: 100 })
+      .withMessage(MESSAGES.validation.monthlySavingsPercentageRange),
+    body('notificationsEnabled').optional().isBoolean(),
+    body('expoPushToken').optional().isString(),
+    body('goldPriceAlertThreshold')
+      .optional()
+      .isFloat({ min: 0 })
+      .withMessage(MESSAGES.validation.amountPositive),
   ],
   updateProfile
 );

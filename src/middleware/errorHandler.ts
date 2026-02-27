@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { MESSAGES } from '../constants/messages';
 
 export interface ApiError extends Error {
   statusCode?: number;
@@ -11,7 +12,7 @@ export const errorHandler = (
   _next: NextFunction
 ): void => {
   const statusCode = err.statusCode || 500;
-  const message = err.message || 'Internal Server Error';
+  const message = err.message || MESSAGES.common.internalServerError;
 
   console.error('Error:', err);
 

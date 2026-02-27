@@ -48,6 +48,13 @@ export interface IGoal extends Document {
   goldPriceAtCreation: number;
   isWishlisted: boolean;
   savedGoldAmount: number;
+  recurringPlan: {
+    enabled: boolean;
+    frequency: 'weekly' | 'monthly';
+    dayOfWeek?: number;
+    dayOfMonth?: number;
+    reminderHour: number;
+  };
   createdAt: Date;
   updatedAt: Date;
 }
@@ -88,6 +95,33 @@ const GoalSchema: Schema = new Schema(
       type: Number,
       default: 0,
       min: 0,
+    },
+    recurringPlan: {
+      enabled: {
+        type: Boolean,
+        default: false,
+      },
+      frequency: {
+        type: String,
+        enum: ['weekly', 'monthly'],
+        default: 'monthly',
+      },
+      dayOfWeek: {
+        type: Number,
+        min: 0,
+        max: 6,
+      },
+      dayOfMonth: {
+        type: Number,
+        min: 1,
+        max: 28,
+      },
+      reminderHour: {
+        type: Number,
+        min: 0,
+        max: 23,
+        default: 20,
+      },
     },
   },
   {

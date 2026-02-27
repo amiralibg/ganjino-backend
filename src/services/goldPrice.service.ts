@@ -1,10 +1,11 @@
 import axios from 'axios';
+import { env } from '../config/env';
 
-const GOLD_API_URL = process.env.GOLD_API_URL || 'https://BrsApi.ir/Api/Market/Gold_Currency.php';
+const GOLD_API_URL = env.GOLD_API_URL;
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
 
 const getGoldApiKey = (): string => {
-  const apiKey = process.env.GOLD_API_KEY;
+  const apiKey = env.GOLD_API_KEY;
   if (!apiKey) {
     throw new Error('GOLD_API_KEY environment variable is not set');
   }

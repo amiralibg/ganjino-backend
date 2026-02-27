@@ -12,8 +12,26 @@ import {
   revokeSession,
 } from '../controllers/auth.controller';
 import { authenticateToken } from '../middleware/auth';
+import { MESSAGES } from '../constants/messages';
+import { createRateLimiter } from '../middleware/rateLimit';
+import { validateRequest } from '../middleware/validateRequest';
 
-const router = Router();
+const router: Router = Router();
+const signInRateLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  keyPrefix: 'auth:signin',
+});
+const signUpRateLimiter = createRateLimiter({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  keyPrefix: 'auth:signup',
+});
+const refreshRateLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  keyPrefix: 'auth:refresh',
+});
 
 /**
  * @swagger
@@ -59,11 +77,13 @@ const router = Router();
  */
 router.post(
   '/signup',
+  signUpRateLimiter,
   [
-    body('email').isEmail().withMessage('Please provide a valid email'),
-    body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
-    body('name').notEmpty().withMessage('Name is required'),
+    body('email').isEmail().withMessage(MESSAGES.validation.validEmailRequired),
+    body('password').isLength({ min: 6 }).withMessage(MESSAGES.validation.passwordMin6),
+    body('name').notEmpty().withMessage(MESSAGES.validation.nameRequired),
   ],
+  validateRequest,
   signUp
 );
 
@@ -107,10 +127,12 @@ router.post(
  */
 router.post(
   '/signin',
+  signInRateLimiter,
   [
-    body('email').isEmail().withMessage('Please provide a valid email'),
-    body('password').notEmpty().withMessage('Password is required'),
+    body('email').isEmail().withMessage(MESSAGES.validation.validEmailRequired),
+    body('password').notEmpty().withMessage(MESSAGES.validation.passwordRequired),
   ],
+  validateRequest,
   signIn
 );
 
@@ -171,7 +193,9 @@ router.get('/me', authenticateToken, getMe);
  */
 router.post(
   '/refresh',
-  [body('refreshToken').notEmpty().withMessage('Refresh token is required')],
+  refreshRateLimiter,
+  [body('refreshToken').notEmpty().withMessage(MESSAGES.validation.refreshTokenRequired)],
+  validateRequest,
   refreshAccessToken
 );
 
@@ -198,7 +222,8 @@ router.post(
  */
 router.post(
   '/logout',
-  [body('refreshToken').notEmpty().withMessage('Refresh token is required')],
+  [body('refreshToken').notEmpty().withMessage(MESSAGES.validation.refreshTokenRequired)],
+  validateRequest,
   logout
 );
 

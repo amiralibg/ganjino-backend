@@ -133,6 +133,7 @@ backend/
 - `npm run build` - Build TypeScript to JavaScript
 - `npm start` - Start production server
 - `npm run typecheck` - Run TypeScript type checking
+- `npm run seed:default` - Seed default dataset (super admin, admin, sample users, goals, logs, gold history)
 
 ## Environment Variables
 
@@ -142,3 +143,14 @@ backend/
 | MONGODB_URI | MongoDB connection string | mongodb://localhost:27017/ganjino |
 | JWT_SECRET | Secret key for JWT signing | - |
 | NODE_ENV | Environment (development/production) | development |
+| GOLD_API_KEY | API key for gold price source | - |
+| CORS_ORIGIN | Comma-separated allowed origins | - |
+| SEED_SUPER_ADMIN_EMAIL | Seeded super admin email | superadmin@ganjino.local |
+| SEED_SUPER_ADMIN_PASSWORD | Seeded super admin password | SuperAdmin123! |
+| SEED_ADMIN_EMAIL | Seeded admin email | admin@ganjino.local |
+| SEED_ADMIN_PASSWORD | Seeded admin password | Admin123! |
+
+## Admin Roles
+
+- `super_admin`: Full admin dashboard access, including sensitive role and user status changes.
+- `admin`: Read/security insights access in admin dashboard, without privileged mutation actions.

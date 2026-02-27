@@ -1,16 +1,19 @@
 import { Router } from 'express';
+import { param, query } from 'express-validator';
 import {
   getAllUsers,
   getUserDetails,
   toggleUserStatus,
   promoteToAdmin,
+  demoteAdminToUser,
   getSecurityInsights,
   getDashboardStats,
 } from '../controllers/admin.controller';
 import { authenticateToken } from '../middleware/auth';
-import { requireAdmin } from '../middleware/adminAuth';
+import { requireAdmin, requireAdminPermission, requireSuperAdmin } from '../middleware/adminAuth';
+import { validateRequest } from '../middleware/validateRequest';
 
-const router = Router();
+const router: Router = Router();
 
 // All admin routes require authentication and admin role
 router.use(authenticateToken);
@@ -30,7 +33,7 @@ router.use(requireAdmin);
  *       403:
  *         description: Forbidden - Admin only
  */
-router.get('/stats', getDashboardStats);
+router.get('/stats', requireAdminPermission('admin.read'), getDashboardStats);
 
 /**
  * @swagger
@@ -57,7 +60,21 @@ router.get('/stats', getDashboardStats);
  *       200:
  *         description: List of users
  */
-router.get('/users', getAllUsers);
+router.get(
+  '/users',
+  requireAdminPermission('admin.read'),
+  [
+    query('page').optional().isInt({ min: 1 }).toInt(),
+    query('limit').optional().isInt({ min: 1, max: 100 }).toInt(),
+    query('search').optional().isString().trim(),
+    query('role').optional().isIn(['all', 'user', 'admin', 'super_admin']),
+    query('status').optional().isIn(['all', 'active', 'inactive']),
+    query('sortBy').optional().isIn(['createdAt', 'name', 'email']),
+    query('sortOrder').optional().isIn(['asc', 'desc']),
+  ],
+  validateRequest,
+  getAllUsers
+);
 
 /**
  * @swagger
@@ -77,7 +94,13 @@ router.get('/users', getAllUsers);
  *       200:
  *         description: User details
  */
-router.get('/users/:userId', getUserDetails);
+router.get(
+  '/users/:userId',
+  requireAdminPermission('admin.read'),
+  [param('userId').isMongoId()],
+  validateRequest,
+  getUserDetails
+);
 
 /**
  * @swagger
@@ -97,7 +120,13 @@ router.get('/users/:userId', getUserDetails);
  *       200:
  *         description: User status updated
  */
-router.patch('/users/:userId/toggle-status', toggleUserStatus);
+router.patch(
+  '/users/:userId/toggle-status',
+  requireSuperAdmin,
+  [param('userId').isMongoId()],
+  validateRequest,
+  toggleUserStatus
+);
 
 /**
  * @swagger
@@ -117,7 +146,39 @@ router.patch('/users/:userId/toggle-status', toggleUserStatus);
  *       200:
  *         description: User promoted
  */
-router.patch('/users/:userId/promote', promoteToAdmin);
+router.patch(
+  '/users/:userId/promote',
+  requireAdminPermission('admin.roles.manage'),
+  [param('userId').isMongoId()],
+  validateRequest,
+  promoteToAdmin
+);
+
+/**
+ * @swagger
+ * /api/admin/users/{userId}/demote:
+ *   patch:
+ *     summary: Demote admin to user
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: User demoted
+ */
+router.patch(
+  '/users/:userId/demote',
+  requireAdminPermission('admin.roles.manage'),
+  [param('userId').isMongoId()],
+  validateRequest,
+  demoteAdminToUser
+);
 
 /**
  * @swagger
@@ -131,6 +192,6 @@ router.patch('/users/:userId/promote', promoteToAdmin);
  *       200:
  *         description: Security insights
  */
-router.get('/security/insights', getSecurityInsights);
+router.get('/security/insights', requireAdminPermission('admin.security.read'), getSecurityInsights);
 
 export default router;

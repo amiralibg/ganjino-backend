@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { getGoldPrices, get18KPrice } from '../controllers/gold.controller';
 
-const router = Router();
+const router: Router = Router();
 
 /**
  * @swagger

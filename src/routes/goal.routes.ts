@@ -10,8 +10,9 @@ import {
   getWishlistedGoals,
 } from '../controllers/goal.controller';
 import { authenticateToken } from '../middleware/auth';
+import { MESSAGES } from '../constants/messages';
 
-const router = Router();
+const router: Router = Router();
 
 // All routes require authentication
 router.use(authenticateToken);
@@ -146,12 +147,29 @@ router.get('/:id', getGoalById);
 router.post(
   '/',
   [
-    body('name').notEmpty().withMessage('Goal name is required'),
-    body('price').isFloat({ min: 0 }).withMessage('Price must be a positive number'),
+    body('name').notEmpty().withMessage(MESSAGES.validation.goalNameRequired),
+    body('price').isFloat({ min: 0 }).withMessage(MESSAGES.validation.positivePriceRequired),
     body('savedGoldAmount')
       .optional()
       .isFloat({ min: 0 })
-      .withMessage('Saved gold amount must be a positive number'),
+      .withMessage(MESSAGES.validation.positiveSavedGoldAmountRequired),
+    body('recurringPlan.enabled').optional().isBoolean(),
+    body('recurringPlan.frequency')
+      .optional()
+      .isIn(['weekly', 'monthly'])
+      .withMessage(MESSAGES.validation.recurringFrequencyValid),
+    body('recurringPlan.dayOfWeek')
+      .optional()
+      .isInt({ min: 0, max: 6 })
+      .withMessage(MESSAGES.validation.recurringDayOfWeekValid),
+    body('recurringPlan.dayOfMonth')
+      .optional()
+      .isInt({ min: 1, max: 28 })
+      .withMessage(MESSAGES.validation.recurringDayOfMonthValid),
+    body('recurringPlan.reminderHour')
+      .optional()
+      .isInt({ min: 0, max: 23 })
+      .withMessage(MESSAGES.validation.recurringReminderHourValid),
   ],
   createGoal
 );
@@ -209,11 +227,31 @@ router.post(
 router.put(
   '/:id',
   [
-    body('price').optional().isFloat({ min: 0 }).withMessage('Price must be a positive number'),
+    body('price')
+      .optional()
+      .isFloat({ min: 0 })
+      .withMessage(MESSAGES.validation.positivePriceRequired),
     body('savedGoldAmount')
       .optional()
       .isFloat({ min: 0 })
-      .withMessage('Saved gold amount must be a positive number'),
+      .withMessage(MESSAGES.validation.positiveSavedGoldAmountRequired),
+    body('recurringPlan.enabled').optional().isBoolean(),
+    body('recurringPlan.frequency')
+      .optional()
+      .isIn(['weekly', 'monthly'])
+      .withMessage(MESSAGES.validation.recurringFrequencyValid),
+    body('recurringPlan.dayOfWeek')
+      .optional()
+      .isInt({ min: 0, max: 6 })
+      .withMessage(MESSAGES.validation.recurringDayOfWeekValid),
+    body('recurringPlan.dayOfMonth')
+      .optional()
+      .isInt({ min: 1, max: 28 })
+      .withMessage(MESSAGES.validation.recurringDayOfMonthValid),
+    body('recurringPlan.reminderHour')
+      .optional()
+      .isInt({ min: 0, max: 23 })
+      .withMessage(MESSAGES.validation.recurringReminderHourValid),
   ],
   updateGoal
 );
